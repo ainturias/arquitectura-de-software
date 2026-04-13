@@ -11,7 +11,9 @@ arquitectura-de-software/
 │   ├── parcial-2/
 │   └── parcial-3/
 ├── practicas/
-└── proyectos/
+├── proyectos/
+└── ejemplos/
+
 ```
 
 ## Parcial 1 - Sistema de Control de Asistencia
