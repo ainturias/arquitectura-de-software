@@ -1,0 +1,16 @@
+# Dependencias
+vendor/
+
+# Carpetas locales (no subir al repo)
+1er Parcial/
+EJEMPLOS/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
