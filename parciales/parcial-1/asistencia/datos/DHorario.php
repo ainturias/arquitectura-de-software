@@ -1,5 +1,5 @@
 <?php
-// Capa de Datos - Horario (usa FK de aula y grupo)
+// Capa de Datos - Horario (usa FK de aula y grupo, contiene el QR)
 require_once __DIR__ . '/../config/Conexion.php';
 
 class DHorario {
@@ -9,6 +9,7 @@ class DHorario {
     private int $dia_semana;
     private string $hora_inicio;
     private string $hora_fin;
+    private ?string $qr_code = null;
 
     private PDO $con;
 
@@ -23,7 +24,9 @@ class DHorario {
     public function setDiaSemana(int $dia): void { $this->dia_semana = $dia; }
     public function setHoraInicio(string $hora): void { $this->hora_inicio = $hora; }
     public function setHoraFin(string $hora): void { $this->hora_fin = $hora; }
+    public function setQrCode(?string $qr): void { $this->qr_code = $qr; }
 
+    // Inserta un nuevo horario en la base de datos
     public function crear(): bool {
         $sql = "INSERT INTO horario (id_aula, id_grupo, dia_semana, hora_inicio, hora_fin)
                 VALUES (?, ?, ?, ?, ?)";
@@ -34,6 +37,7 @@ class DHorario {
         ]);
     }
 
+    // Actualiza un horario existente
     public function editar(): bool {
         $sql = "UPDATE horario SET id_aula=?, id_grupo=?, dia_semana=?, hora_inicio=?, hora_fin=?
                 WHERE id_horario=?";
@@ -45,6 +49,7 @@ class DHorario {
         return $stmt->rowCount() > 0;
     }
 
+    // Elimina un horario por su id
     public function eliminar(): bool {
         $sql = "DELETE FROM horario WHERE id_horario=?";
         $stmt = $this->con->prepare($sql);
@@ -52,11 +57,12 @@ class DHorario {
         return $stmt->rowCount() > 0;
     }
 
+    // Lista todos los horarios con datos del aula, grupo y materia
     public function listar(): array {
         $sql = "SELECT h.id_horario, h.id_aula, a.codigo AS aula_codigo,
                        h.id_grupo, g.nombre AS grupo_nombre,
                        m.sigla, m.nombre_materia,
-                       h.dia_semana, h.hora_inicio, h.hora_fin
+                       h.dia_semana, h.hora_inicio, h.hora_fin, h.qr_code
                 FROM horario h
                 JOIN aula    a ON h.id_aula  = a.id_aula
                 JOIN grupo   g ON h.id_grupo = g.id_grupo
@@ -64,6 +70,14 @@ class DHorario {
                 ORDER BY h.dia_semana, h.hora_inicio";
         $stmt = $this->con->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Guarda el identificador del QR en el horario
+    public function guardarQr(): bool {
+        $sql = "UPDATE horario SET qr_code=? WHERE id_horario=?";
+        $stmt = $this->con->prepare($sql);
+        $stmt->execute([$this->qr_code, $this->id_horario]);
+        return $stmt->rowCount() > 0;
     }
 
     // Verifica si hay choque de horarios en la misma aula

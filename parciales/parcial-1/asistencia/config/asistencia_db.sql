@@ -14,8 +14,7 @@ CREATE TABLE materia (
 -- AULA (Caso de Uso Básico)
 CREATE TABLE aula (
   id_aula  SERIAL      PRIMARY KEY,
-  codigo   VARCHAR(40) NOT NULL UNIQUE,
-  qr_code  TEXT
+  codigo   VARCHAR(40) NOT NULL UNIQUE
 );
 
 -- ESTUDIANTE (Caso de Uso Básico)
@@ -36,6 +35,7 @@ CREATE TABLE grupo (
 );
 
 -- HORARIO (Caso de Uso Complejo - FK a aula y grupo)
+-- El QR pertenece al horario porque identifica una clase específica
 CREATE TABLE horario (
   id_horario  SERIAL   PRIMARY KEY,
   id_aula     INT      NOT NULL,
@@ -43,11 +43,13 @@ CREATE TABLE horario (
   dia_semana  SMALLINT NOT NULL,
   hora_inicio TIME     NOT NULL,
   hora_fin    TIME     NOT NULL,
+  qr_code     TEXT,
   FOREIGN KEY (id_aula)  REFERENCES aula(id_aula)   ON DELETE RESTRICT,
   FOREIGN KEY (id_grupo) REFERENCES grupo(id_grupo)  ON DELETE CASCADE
 );
 
--- INSCRIPCION (Parte del Caso de Uso Transaccional)
+-- INSCRIPCION (Composición de Grupo - CU Transaccional)
+-- Si se elimina el grupo, se eliminan sus inscripciones
 CREATE TABLE inscripcion (
   id_inscripcion    SERIAL PRIMARY KEY,
   id_estudiante     INT    NOT NULL,
@@ -58,7 +60,7 @@ CREATE TABLE inscripcion (
   FOREIGN KEY (id_grupo)      REFERENCES grupo(id_grupo)           ON DELETE CASCADE
 );
 
--- ASISTENCIA (Parte del Caso de Uso Transaccional)
+-- ASISTENCIA (CU Transaccional - detalle de asistencia por horario)
 CREATE TABLE asistencia (
   id_asistencia SERIAL      PRIMARY KEY,
   id_estudiante INT         NOT NULL,
@@ -69,5 +71,6 @@ CREATE TABLE asistencia (
   FOREIGN KEY (id_horario)    REFERENCES horario(id_horario)       ON DELETE CASCADE
 );
 
+-- Evita que un estudiante marque dos veces el mismo día en el mismo horario
 CREATE UNIQUE INDEX uq_asistencia_dia
   ON asistencia (id_estudiante, id_horario, (DATE(fecha_hora)));

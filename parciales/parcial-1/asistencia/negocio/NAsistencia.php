@@ -1,73 +1,53 @@
 <?php
 // Capa de Negocio - Asistencia (CU Transaccional)
-// Maneja la inscripcion de estudiantes y el registro de asistencia
+// Maneja el proceso de marcar asistencia cuando el estudiante escanea el QR
 require_once __DIR__ . '/../datos/DAsistencia.php';
-require_once __DIR__ . '/../datos/DInscripcion.php';
 
 class NAsistencia {
     private DAsistencia $datosAsistencia;
-    private DInscripcion $datosInscripcion;
 
     public function __construct() {
         $this->datosAsistencia = new DAsistencia();
-        $this->datosInscripcion = new DInscripcion();
     }
 
-    // --- Inscripción (parte del CU Transaccional) ---
-    public function listarEstudiantesDeGrupo(int $id_grupo): array {
-        $this->datosInscripcion->setIdGrupo($id_grupo);
-        return $this->datosInscripcion->listarEstudiantesDeGrupo();
-    }
-
-    public function listarEstudiantesNoInscritos(int $id_grupo): array {
-        $this->datosInscripcion->setIdGrupo($id_grupo);
-        return $this->datosInscripcion->listarEstudiantesNoInscritos();
-    }
-
-    public function inscribir(int $id_estudiante, int $id_grupo): bool {
-        $this->datosInscripcion->setIdEstudiante($id_estudiante);
-        $this->datosInscripcion->setIdGrupo($id_grupo);
-        return $this->datosInscripcion->inscribir();
-    }
-
-    public function desinscribir(int $id_estudiante, int $id_grupo): bool {
-        $this->datosInscripcion->setIdEstudiante($id_estudiante);
-        $this->datosInscripcion->setIdGrupo($id_grupo);
-        return $this->datosInscripcion->desinscribir();
-    }
-
-    // --- Asistencia vía QR (parte del CU Transaccional) ---
-    public function obtenerDatosParaFormulario(int $id_aula): array {
-        $claseActual = $this->datosAsistencia->buscarClaseActualPorAula($id_aula);
-        if (!$claseActual) {
-            return ['error' => 'No hay ninguna clase programada en esta aula en este momento.'];
+    // Obtiene los datos del horario para mostrar en el formulario del estudiante
+    public function obtenerDatosParaFormulario(int $id_horario): array {
+        $horario = $this->datosAsistencia->buscarHorario($id_horario);
+        if (!$horario) {
+            return ['error' => 'No se encontró el horario asociado a este QR.'];
         }
         return [
             'error' => null,
             'datos_clase' => [
-                'codigo_aula' => $claseActual['codigo_aula'],
-                'nombre_materia' => $claseActual['nombre_materia'],
-                'hora_actual' => date('H:i:s')
+                'id_horario'      => $horario['id_horario'],
+                'id_grupo'        => $horario['id_grupo'],
+                'codigo_aula'     => $horario['codigo_aula'],
+                'nombre_materia'  => $horario['nombre_materia'],
+                'grupo_nombre'    => $horario['grupo_nombre'],
+                'hora_actual'     => date('H:i:s')
             ]
         ];
     }
 
-    public function marcarAsistencia(string $registro, int $id_aula): string {
+    // Marca la asistencia del estudiante en un horario
+    public function marcarAsistencia(string $registro, int $id_horario): string {
         $registro = trim($registro);
 
-        $claseActual = $this->datosAsistencia->buscarClaseActualPorAula($id_aula);
-        if (!$claseActual) {
-            return 'El tiempo para marcar asistencia ha terminado.';
+        // Buscamos el horario para saber a qué grupo pertenece
+        $horario = $this->datosAsistencia->buscarHorario($id_horario);
+        if (!$horario) {
+            return 'No se encontró la información del horario.';
         }
 
-        $id_horario = $claseActual['id_horario'];
-        $id_grupo = $claseActual['id_grupo'];
+        $id_grupo = $horario['id_grupo'];
 
+        // Verificamos que el estudiante esté inscrito en ese grupo
         $id_estudiante = $this->datosAsistencia->buscarEstudiantePorRegistroYGrupo($registro, $id_grupo);
         if (!$id_estudiante) {
             return 'Registro no encontrado o no estás inscrito en esta clase.';
         }
 
+        // Registramos la asistencia
         $this->datosAsistencia->setIdEstudiante($id_estudiante);
         $this->datosAsistencia->setIdHorario($id_horario);
 
@@ -78,7 +58,7 @@ class NAsistencia {
         }
     }
 
-    // --- Reporte de asistencia ---
+    // Reporte: lista asistencias de un grupo con filtro de fecha
     public function listarPorGrupo(int $id_grupo, ?string $fecha): array {
         return $this->datosAsistencia->listarPorGrupo($id_grupo, $fecha);
     }

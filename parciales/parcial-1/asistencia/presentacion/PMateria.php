@@ -10,7 +10,7 @@ class PMateria extends VistaBase {
         $this->negocioMateria = new NMateria();
     }
 
-    // Procesa las acciones del formulario (crear, editar, eliminar)
+    // Procesa las acciones del formulario
     public function procesarFormulario(): void {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accion = $_POST['accion'] ?? '';
@@ -20,29 +20,44 @@ class PMateria extends VistaBase {
 
             switch ($accion) {
                 case 'crear':
-                    if ($sigla && $nombre) {
-                        echo $this->negocioMateria->crear($sigla, $nombre)
-                            ? "<p class='alert alert-success'>Materia creada exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error: la sigla ya existe.</p>";
-                    } else {
-                        echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
-                    }
+                    $this->crear($sigla, $nombre);
                     break;
                 case 'editar':
-                    if ($id !== null && $sigla && $nombre) {
-                        echo $this->negocioMateria->editar($id, $sigla, $nombre)
-                            ? "<p class='alert alert-success'>Materia editada exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al editar materia.</p>";
-                    }
+                    $this->editar($id, $sigla, $nombre);
                     break;
                 case 'eliminar':
-                    if ($id !== null) {
-                        echo $this->negocioMateria->eliminar($id)
-                            ? "<p class='alert alert-success'>Materia eliminada exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al eliminar materia.</p>";
-                    }
+                    $this->eliminar($id);
                     break;
             }
+        }
+    }
+
+    // Método que activa la lógica de creación en el Negocio
+    private function crear(string $sigla, string $nombre): void {
+        if ($sigla && $nombre) {
+            echo $this->negocioMateria->crear($sigla, $nombre)
+                ? "<p class='alert alert-success'>Materia creada exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error: la sigla ya existe.</p>";
+        } else {
+            echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
+        }
+    }
+
+    // Método que activa la edición en el Negocio
+    private function editar(?int $id, string $sigla, string $nombre): void {
+        if ($id !== null && $sigla && $nombre) {
+            echo $this->negocioMateria->editar($id, $sigla, $nombre)
+                ? "<p class='alert alert-success'>Materia editada exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error al editar materia.</p>";
+        }
+    }
+
+    // Método que activa la eliminación en el Negocio
+    private function eliminar(?int $id): void {
+        if ($id !== null) {
+            echo $this->negocioMateria->eliminar($id)
+                ? "<p class='alert alert-success'>Materia eliminada exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error al eliminar materia.</p>";
         }
     }
 

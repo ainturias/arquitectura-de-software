@@ -1,67 +1,92 @@
 <?php
-// Gestión de Inscripciones y Reporte de Asistencia - Capa de Presentación
-// Parte del Caso de Uso Transaccional (Gestionar Asistencia)
+// Gestión de Inscripciones - Capa de Presentación (CU Transaccional)
+// Implementa el patrón de Composición (Master-Detail) para la carga masiva
 require_once 'VistaBase.php';
-require_once '../negocio/NAsistencia.php';
+require_once '../negocio/NInscripcion.php';
 require_once '../negocio/NGrupo.php';
 
 class PInscripcion extends VistaBase {
-    private NAsistencia $negocioAsistencia;
+    private NInscripcion $negocioInscripcion;
     private NGrupo $negocioGrupo;
 
     public function __construct() {
-        $this->negocioAsistencia = new NAsistencia();
+        $this->negocioInscripcion = new NInscripcion();
         $this->negocioGrupo = new NGrupo();
     }
 
-    // Procesa inscribir o desinscribir un estudiante de un grupo
+    // Procesa las acciones del formulario (Enrutador)
     public function procesarFormulario(): void {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accion = $_POST['accion'] ?? '';
             $id_grupo = isset($_POST['id_grupo']) && is_numeric($_POST['id_grupo']) ? (int)$_POST['id_grupo'] : null;
             $id_estudiante = isset($_POST['id_estudiante']) && is_numeric($_POST['id_estudiante']) ? (int)$_POST['id_estudiante'] : null;
 
-            if ($id_grupo && $id_estudiante) {
-                switch ($accion) {
-                    case 'inscribir':
-                        echo $this->negocioAsistencia->inscribir($id_estudiante, $id_grupo)
-                            ? "<p class='alert alert-success'>Estudiante inscrito exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al inscribir estudiante.</p>";
-                        break;
-                    case 'desinscribir':
-                        echo $this->negocioAsistencia->desinscribir($id_estudiante, $id_grupo)
-                            ? "<p class='alert alert-success'>Estudiante removido del grupo.</p>"
-                            : "<p class='alert alert-danger'>Error al remover estudiante.</p>";
-                        break;
-                }
+            switch ($accion) {
+                case 'desinscribir':
+                    $this->desinscribir($id_estudiante, $id_grupo);
+                    break;
+                case 'importar':
+                    $this->importarCSV($id_grupo);
+                    break;
             }
         }
     }
 
-    // Muestra la vista de inscripciones
+    // Método que activa la eliminación de la inscripción en el Negocio
+    private function desinscribir(?int $id_estu, ?int $id_g): void {
+        if ($id_g && $id_estu) {
+            echo $this->negocioInscripcion->desinscribir($id_estu, $id_g)
+                ? "<p class='alert alert-success'>Estudiante removido del grupo.</p>"
+                : "<p class='alert alert-danger'>Error al remover estudiante.</p>";
+        }
+    }
+
+    // Procesa la importación del archivo CSV usando NInscripcion (Lógica de Composición)
+    private function importarCSV(?int $id_grupo): void {
+        if (!$id_grupo) {
+            echo "<p class='alert alert-warning'>Seleccione un grupo primero.</p>";
+            return;
+        }
+        if (!isset($_FILES['archivo_csv']) || $_FILES['archivo_csv']['error'] !== UPLOAD_ERR_OK) {
+            echo "<p class='alert alert-warning'>Seleccione un archivo CSV válido.</p>";
+            return;
+        }
+
+        $lista = $this->negocioInscripcion->procesarCSV($_FILES['archivo_csv']['tmp_name']);
+        if (empty($lista)) {
+            echo "<p class='alert alert-warning'>El archivo CSV está vacío o tiene formato incorrecto.</p>";
+            return;
+        }
+
+        // Llamada al negocio (Loop de composición)
+        $resultado = $this->negocioInscripcion->inscribirLista($id_grupo, $lista);
+        echo "<p class='alert alert-success'>Importación completada: {$resultado['ok']} inscrito(s), {$resultado['errores']} error(es).</p>";
+    }
+
+    // Muestra la vista de inscripciones en formato vertical
     public function mostrarVista(): void {
         $this->renderInicio("Gestión de Inscripciones");
         $grupos = $this->negocioGrupo->listar();
 
-        // Obtener el grupo seleccionado (por GET o POST)
+        // Obtener el grupo seleccionado
         $id_grupo_sel = isset($_GET['id_grupo']) && is_numeric($_GET['id_grupo']) ? (int)$_GET['id_grupo'] : null;
         if (!$id_grupo_sel && isset($_POST['id_grupo']) && is_numeric($_POST['id_grupo'])) {
             $id_grupo_sel = (int)$_POST['id_grupo'];
         }
-
-        // Filtro de fecha para el reporte (opcional)
-        $fecha_filtro = $_GET['fecha'] ?? null;
 ?>
-        <h2>Gestionar Inscripciones</h2>
+        <div class="container-fluid py-3">
+            <h2 class="mb-4">Gestionar Inscripciones</h2>
 
-        <!-- Selector de grupo -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <form method="GET">
-                    <div class="row g-3">
-                        <div class="col-md-8">
+            <!-- 1. SELECCIÓN DE GRUPO (Vertical) -->
+            <div class="card mb-3 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <strong>1. Seleccionar Grupo</strong>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3 align-items-center">
+                        <div class="col-md-9">
                             <select name="id_grupo" class="form-select" required>
-                                <option value="">-- Seleccionar Grupo --</option>
+                                <option value="">-- Materia / Grupo --</option>
                                 <?php foreach ($grupos as $g): ?>
                                     <option value="<?= $g['id_grupo'] ?>" <?= $id_grupo_sel == $g['id_grupo'] ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($g['materia'] . ' / ' . $g['nombre']) ?>
@@ -69,39 +94,65 @@ class PInscripcion extends VistaBase {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <button type="submit" class="btn btn-primary w-100">Ver Grupo</button>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
-        </div>
 
-        <?php if ($id_grupo_sel):
-            // Obtenemos los inscritos y los disponibles para este grupo
-            $inscritos = $this->negocioAsistencia->listarEstudiantesDeGrupo($id_grupo_sel);
-            $noInscritos = $this->negocioAsistencia->listarEstudiantesNoInscritos($id_grupo_sel);
-            // Obtenemos el reporte de asistencia del grupo
-            $asistencias = $this->negocioAsistencia->listarPorGrupo($id_grupo_sel, $fecha_filtro);
-        ?>
-            <div class="row">
-                <!-- Estudiantes inscritos -->
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header bg-success text-white"><strong>Estudiantes Inscritos</strong></div>
-                        <div class="card-body p-0">
-                            <?php if (!empty($inscritos)): ?>
-                                <table class="table table-sm table-hover mb-0">
+            <!-- 2. IMPORTAR CSV (Estático - Siempre arriba) -->
+            <div class="card mb-3 shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <strong>2. Importar Estudiantes (CSV)</strong>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="id_grupo" value="<?= $id_grupo_sel ?>">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-9">
+                                <label class="form-label text-muted small">Seleccione archivo (.csv) con formato: registro, nombre, apellido</label>
+                                <input type="file" name="archivo_csv" class="form-control" accept=".csv" <?= !$id_grupo_sel ? 'disabled' : '' ?> required>
+                            </div>
+                            <div class="col-md-3">
+                                <button name="accion" value="importar" class="btn btn-info text-white w-100" <?= !$id_grupo_sel ? 'disabled' : '' ?>>
+                                    📁 Importar CSV
+                                </button>
+                            </div>
+                        </div>
+                        <?php if (!$id_grupo_sel): ?>
+                            <div class="mt-2 text-danger small">Debe seleccionar un grupo antes de importar.</div>
+                        <?php endif; ?>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 3. LISTADO DE INSCRITOS (Feedback de Composición) -->
+            <?php if ($id_grupo_sel): 
+                $inscritos = $this->negocioInscripcion->listarEstudiantesDeGrupo($id_grupo_sel);
+            ?>
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <strong>Estudiantes Inscritos en el Grupo</strong>
+                    </div>
+                    <div class="card-body p-0">
+                        <?php if (!empty($inscritos)): ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
                                     <thead class="table-light">
-                                        <tr><th>Registro</th><th>Nombre</th><th>Acción</th></tr>
+                                        <tr>
+                                            <th>Registro</th>
+                                            <th>Nombre Completo</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
                                     </thead>
                                     <tbody>
                                         <?php foreach ($inscritos as $e): ?>
                                             <tr>
                                                 <td><?= htmlspecialchars($e['registro']) ?></td>
                                                 <td><?= htmlspecialchars($e['nombre_completo']) ?></td>
-                                                <td>
-                                                    <form method="POST" style="display:inline;">
+                                                <td class="text-center">
+                                                    <form method="POST" onsubmit="return confirm('¿Remover estudiante?');">
                                                         <input type="hidden" name="id_grupo" value="<?= $id_grupo_sel ?>">
                                                         <input type="hidden" name="id_estudiante" value="<?= $e['id_estudiante'] ?>">
                                                         <button name="accion" value="desinscribir" class="btn btn-sm btn-outline-danger">Quitar</button>
@@ -111,101 +162,16 @@ class PInscripcion extends VistaBase {
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
-                            <?php else: ?>
-                                <p class="text-muted p-3">No hay estudiantes inscritos.</p>
-                            <?php endif; ?>
-                        </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-warning m-3 text-center">
+                                Aún no hay estudiantes inscritos en este grupo. ¡Usa la opción de importar arriba!
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
-
-                <!-- Estudiantes disponibles para inscribir -->
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header bg-warning"><strong>Estudiantes Disponibles</strong></div>
-                        <div class="card-body p-0">
-                            <?php if (!empty($noInscritos)): ?>
-                                <table class="table table-sm table-hover mb-0">
-                                    <thead class="table-light">
-                                        <tr><th>Registro</th><th>Nombre</th><th>Acción</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($noInscritos as $e): ?>
-                                            <tr>
-                                                <td><?= htmlspecialchars($e['registro']) ?></td>
-                                                <td><?= htmlspecialchars($e['nombre_completo']) ?></td>
-                                                <td>
-                                                    <form method="POST" style="display:inline;">
-                                                        <input type="hidden" name="id_grupo" value="<?= $id_grupo_sel ?>">
-                                                        <input type="hidden" name="id_estudiante" value="<?= $e['id_estudiante'] ?>">
-                                                        <button name="accion" value="inscribir" class="btn btn-sm btn-outline-success">Inscribir</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            <?php else: ?>
-                                <p class="text-muted p-3">Todos los estudiantes ya están inscritos.</p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Reporte de Asistencia del grupo -->
-            <div class="card mt-2">
-                <div class="card-header" style="background: linear-gradient(135deg, #1a237e, #283593);">
-                    <strong class="text-white">📊 Reporte de Asistencia</strong>
-                </div>
-                <div class="card-body">
-                    <!-- Filtro por fecha -->
-                    <form method="GET" class="mb-3">
-                        <input type="hidden" name="id_grupo" value="<?= $id_grupo_sel ?>">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-4">
-                                <label class="form-label">Filtrar por fecha</label>
-                                <input type="date" name="fecha" class="form-control" value="<?= htmlspecialchars($fecha_filtro ?? '') ?>">
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary">Filtrar</button>
-                            </div>
-                            <div class="col-md-2">
-                                <a href="PInscripcion.php?id_grupo=<?= $id_grupo_sel ?>" class="btn btn-outline-secondary">Quitar filtro</a>
-                            </div>
-                        </div>
-                    </form>
-
-                    <?php if (!empty($asistencias)): ?>
-                        <table class="table table-bordered table-hover table-sm">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Hora</th>
-                                    <th>Estudiante</th>
-                                    <th>Registro</th>
-                                    <th>Aula</th>
-                                    <th>Horario</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($asistencias as $a): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($a['fecha']) ?></td>
-                                        <td><?= htmlspecialchars($a['hora']) ?></td>
-                                        <td><?= htmlspecialchars($a['estudiante']) ?></td>
-                                        <td><?= htmlspecialchars($a['registro']) ?></td>
-                                        <td><?= htmlspecialchars($a['aula']) ?></td>
-                                        <td><?= htmlspecialchars($a['horario_rango']) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php else: ?>
-                        <p class="text-muted"><?= $fecha_filtro ? 'No hay registros de asistencia para esa fecha.' : 'Aún no hay registros de asistencia para este grupo.' ?></p>
-                    <?php endif; ?>
-                </div>
-            </div>
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
 <?php
         $this->renderFin();
     }

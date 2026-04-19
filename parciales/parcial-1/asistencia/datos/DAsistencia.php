@@ -1,6 +1,6 @@
 <?php
-// Capa de Datos - Asistencia (parte del CU Transaccional)
-// Maneja el registro de asistencia vía QR
+// Capa de Datos - Asistencia (CU Transaccional)
+// Maneja el registro de asistencia del estudiante vía QR
 require_once __DIR__ . '/../config/Conexion.php';
 
 class DAsistencia {
@@ -16,23 +16,21 @@ class DAsistencia {
     public function setIdEstudiante(int $id): void { $this->id_estudiante = $id; }
     public function setIdHorario(int $id): void { $this->id_horario = $id; }
 
-    // Busca si hay una clase activa ahora mismo en el aula indicada
-    public function buscarClaseActualPorAula(int $id_aula): ?array {
+    // Busca los datos del horario para mostrar en el formulario de asistencia
+    public function buscarHorario(int $id_horario): ?array {
         $sql = "SELECT h.id_horario, h.id_grupo, a.codigo AS codigo_aula,
-                       m.nombre_materia
+                       m.nombre_materia, g.nombre AS grupo_nombre
                 FROM horario h
                 JOIN aula    a ON h.id_aula  = a.id_aula
                 JOIN grupo   g ON h.id_grupo = g.id_grupo
                 JOIN materia m ON g.id_materia = m.id_materia
-                WHERE h.id_aula = ?
-                  AND h.dia_semana = EXTRACT(ISODOW FROM CURRENT_DATE)
-                  AND CURRENT_TIME BETWEEN h.hora_inicio AND h.hora_fin";
+                WHERE h.id_horario = ?";
         $stmt = $this->con->prepare($sql);
-        $stmt->execute([$id_aula]);
+        $stmt->execute([$id_horario]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
-    // Verifica que el estudiante esté inscrito en el grupo de la clase actual
+    // Verifica que el estudiante esté inscrito en el grupo del horario
     public function buscarEstudiantePorRegistroYGrupo(string $registro, int $id_grupo): ?int {
         $sql = "SELECT e.id_estudiante
                 FROM estudiante e
@@ -58,7 +56,7 @@ class DAsistencia {
         }
     }
 
-    // Lista las asistencias registradas para un grupo, con filtro de fecha opcional
+    // Lista las asistencias registradas para un grupo, con filtro de fecha
     public function listarPorGrupo(int $id_grupo, ?string $fecha): array {
         $params = [$id_grupo];
         $filtroFecha = "";

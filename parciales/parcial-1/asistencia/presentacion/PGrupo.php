@@ -23,29 +23,44 @@ class PGrupo extends VistaBase {
 
             switch ($accion) {
                 case 'crear':
-                    if ($id_materia && $nombre) {
-                        echo $this->negocioGrupo->crear($id_materia, $nombre)
-                            ? "<p class='alert alert-success'>Grupo creado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error: ya existe ese grupo en la materia.</p>";
-                    } else {
-                        echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
-                    }
+                    $this->crear($id_materia, $nombre);
                     break;
                 case 'editar':
-                    if ($id !== null && $id_materia && $nombre) {
-                        echo $this->negocioGrupo->editar($id, $id_materia, $nombre)
-                            ? "<p class='alert alert-success'>Grupo editado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al editar grupo.</p>";
-                    }
+                    $this->editar($id, $id_materia, $nombre);
                     break;
                 case 'eliminar':
-                    if ($id !== null) {
-                        echo $this->negocioGrupo->eliminar($id)
-                            ? "<p class='alert alert-success'>Grupo eliminado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al eliminar grupo.</p>";
-                    }
+                    $this->eliminar($id);
                     break;
             }
+        }
+    }
+
+    // Método que activa la creación en el Negocio
+    private function crear(?int $id_materia, string $nombre): void {
+        if ($id_materia && $nombre) {
+            echo $this->negocioGrupo->crear($id_materia, $nombre)
+                ? "<p class='alert alert-success'>Grupo creado exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error: ya existe ese grupo en la materia.</p>";
+        } else {
+            echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
+        }
+    }
+
+    // Método que activa la edición en el Negocio
+    private function editar(?int $id, ?int $id_materia, string $nombre): void {
+        if ($id !== null && $id_materia && $nombre) {
+            echo $this->negocioGrupo->editar($id, $id_materia, $nombre)
+                ? "<p class='alert alert-success'>Grupo editado exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error al editar grupo.</p>";
+        }
+    }
+
+    // Método que activa la eliminación en el Negocio
+    private function eliminar(?int $id): void {
+        if ($id !== null) {
+            echo $this->negocioGrupo->eliminar($id)
+                ? "<p class='alert alert-success'>Grupo eliminado exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error al eliminar grupo.</p>";
         }
     }
 

@@ -1,6 +1,7 @@
 <?php
 // Registro de Asistencia - Capa de Presentación
 // Esta es la página a la que llega el ESTUDIANTE cuando escanea el QR
+// El QR contiene el id_horario para identificar la clase
 require_once 'VistaBase.php';
 require_once '../negocio/NAsistencia.php';
 
@@ -54,15 +55,15 @@ class PAsistencia extends VistaBase {
 
     // Muestra el formulario donde el estudiante ingresa su registro
     private function mostrarFormulario(): void {
-        $id_aula = isset($_GET['id_aula']) && is_numeric($_GET['id_aula']) ? (int)$_GET['id_aula'] : null;
+        $id_horario = isset($_GET['id_horario']) && is_numeric($_GET['id_horario']) ? (int)$_GET['id_horario'] : null;
 
-        if (!$id_aula) {
-            $this->mostrarMensaje('danger', 'URL Inválida', 'El código QR no proporcionó un ID de aula válido.');
+        if (!$id_horario) {
+            $this->mostrarMensaje('danger', 'URL Inválida', 'El código QR no proporcionó un horario válido.');
             return;
         }
 
-        // Verificamos si hay una clase activa en esta aula ahora mismo
-        $data = $this->negocioAsistencia->obtenerDatosParaFormulario($id_aula);
+        // Obtenemos la información del horario para mostrar al estudiante
+        $data = $this->negocioAsistencia->obtenerDatosParaFormulario($id_horario);
 
         if ($data['error']) {
             $this->mostrarMensaje('warning', 'Atención', $data['error']);
@@ -79,19 +80,23 @@ class PAsistencia extends VistaBase {
                     </div>
                     <div class="card-body p-4">
                         <div class="mb-3">
-                            <label class="form-label text-muted">Aula</label>
-                            <p class="fs-5 border-bottom pb-2"><?= htmlspecialchars($clase['codigo_aula']) ?></p>
-                        </div>
-                        <div class="mb-3">
                             <label class="form-label text-muted">Materia</label>
                             <p class="fs-5 border-bottom pb-2"><?= htmlspecialchars($clase['nombre_materia']) ?></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Grupo</label>
+                            <p class="fs-5 border-bottom pb-2"><?= htmlspecialchars($clase['grupo_nombre']) ?></p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Aula</label>
+                            <p class="fs-5 border-bottom pb-2"><?= htmlspecialchars($clase['codigo_aula']) ?></p>
                         </div>
                         <div class="mb-4">
                             <label class="form-label text-muted">Hora Actual</label>
                             <p id="reloj-actual" class="fs-5 border-bottom pb-2"><?= htmlspecialchars($clase['hora_actual']) ?></p>
                         </div>
                         <form method="POST">
-                            <input type="hidden" name="id_aula" value="<?= htmlspecialchars($id_aula) ?>">
+                            <input type="hidden" name="id_horario" value="<?= htmlspecialchars($id_horario) ?>">
                             <div class="mb-3">
                                 <label for="registro" class="form-label fs-5"><strong>Introduce tu Registro</strong></label>
                                 <input type="text" name="registro" id="registro" class="form-control form-control-lg" placeholder="Ej: 219012345" required autofocus>
@@ -120,15 +125,16 @@ class PAsistencia extends VistaBase {
 
     // Procesa el registro de asistencia del estudiante
     private function procesarFormulario(): void {
-        $id_aula = isset($_POST['id_aula']) && is_numeric($_POST['id_aula']) ? (int)$_POST['id_aula'] : null;
+        $id_horario = isset($_POST['id_horario']) && is_numeric($_POST['id_horario']) ? (int)$_POST['id_horario'] : null;
         $registro = $_POST['registro'] ?? null;
 
-        if (!$id_aula || !$registro) {
+        if (!$id_horario || !$registro) {
             $this->mostrarMensaje('danger', 'Error', 'Faltan datos para procesar la asistencia.');
             return;
         }
 
-        $mensaje = $this->negocioAsistencia->marcarAsistencia($registro, $id_aula);
+        // Llamamos al negocio para registrar la asistencia
+        $mensaje = $this->negocioAsistencia->marcarAsistencia($registro, $id_horario);
         $tipoAlerta = str_contains($mensaje, 'éxito') ? 'success' : 'warning';
         $this->mostrarMensaje($tipoAlerta, 'Resultado', $mensaje);
     }

@@ -10,7 +10,7 @@ class PEstudiante extends VistaBase {
         $this->negocioEstudiante = new NEstudiante();
     }
 
-    // Procesa las acciones del formulario
+    // Procesa las acciones del formulario (Enrutador de funciones)
     public function procesarFormulario(): void {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accion = $_POST['accion'] ?? '';
@@ -21,29 +21,44 @@ class PEstudiante extends VistaBase {
 
             switch ($accion) {
                 case 'crear':
-                    if ($nombre && $apellido && $registro) {
-                        echo $this->negocioEstudiante->crear($nombre, $apellido, $registro)
-                            ? "<p class='alert alert-success'>Estudiante creado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error: el registro ya existe.</p>";
-                    } else {
-                        echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
-                    }
+                    $this->crear($nombre, $apellido, $registro);
                     break;
                 case 'editar':
-                    if ($id !== null && $nombre && $apellido && $registro) {
-                        echo $this->negocioEstudiante->editar($id, $nombre, $apellido, $registro)
-                            ? "<p class='alert alert-success'>Estudiante editado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al editar estudiante.</p>";
-                    }
+                    $this->editar($id, $nombre, $apellido, $registro);
                     break;
                 case 'eliminar':
-                    if ($id !== null) {
-                        echo $this->negocioEstudiante->eliminar($id)
-                            ? "<p class='alert alert-success'>Estudiante eliminado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al eliminar estudiante.</p>";
-                    }
+                    $this->eliminar($id);
                     break;
             }
+        }
+    }
+
+    // Método que activa la creación (Detalle Procedimental en el diagrama)
+    private function crear(string $nombre, string $apellido, string $registro): void {
+        if ($nombre && $apellido && $registro) {
+            echo $this->negocioEstudiante->crear($nombre, $apellido, $registro)
+                ? "<p class='alert alert-success'>Estudiante creado exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error: el registro ya existe.</p>";
+        } else {
+            echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
+        }
+    }
+
+    // Método que activa la edición
+    private function editar(?int $id, string $nombre, string $apellido, string $registro): void {
+        if ($id !== null && $nombre && $apellido && $registro) {
+            echo $this->negocioEstudiante->editar($id, $nombre, $apellido, $registro)
+                ? "<p class='alert alert-success'>Estudiante editado exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error al editar estudiante.</p>";
+        }
+    }
+
+    // Método que activa la eliminación
+    private function eliminar(?int $id): void {
+        if ($id !== null) {
+            echo $this->negocioEstudiante->eliminar($id)
+                ? "<p class='alert alert-success'>Estudiante eliminado exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error al eliminar estudiante.</p>";
         }
     }
 

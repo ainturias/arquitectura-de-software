@@ -1,5 +1,6 @@
 <?php
-// Gestión de Horarios - Capa de Presentación
+// Gestión de Horarios - Capa de Presentación (CU Complejo)
+// Incluye la generación del QR (el QR pertenece al horario)
 require_once 'VistaBase.php';
 require_once '../negocio/NHorario.php';
 require_once '../negocio/NAula.php';
@@ -22,7 +23,7 @@ class PHorario extends VistaBase {
         $this->negocioGrupo = new NGrupo();
     }
 
-    // Procesa las acciones del formulario
+    // Procesa las acciones del formulario (Enrutador)
     public function procesarFormulario(): void {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accion = $_POST['accion'] ?? '';
@@ -35,42 +36,84 @@ class PHorario extends VistaBase {
 
             switch ($accion) {
                 case 'crear':
-                    if ($id_aula && $id_grupo && $dia && $hora_inicio && $hora_fin) {
-                        $resultado = $this->negocioHorario->crear($id_aula, $id_grupo, $dia, $hora_inicio, $hora_fin);
-                        echo $resultado === 'ok'
-                            ? "<p class='alert alert-success'>Horario creado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>$resultado</p>";
-                    } else {
-                        echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
-                    }
+                    $this->crear($id_aula, $id_grupo, $dia, $hora_inicio, $hora_fin);
                     break;
                 case 'editar':
-                    if ($id !== null && $id_aula && $id_grupo && $dia && $hora_inicio && $hora_fin) {
-                        $resultado = $this->negocioHorario->editar($id, $id_aula, $id_grupo, $dia, $hora_inicio, $hora_fin);
-                        echo $resultado === 'ok'
-                            ? "<p class='alert alert-success'>Horario editado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>$resultado</p>";
-                    }
+                    $this->editar($id, $id_aula, $id_grupo, $dia, $hora_inicio, $hora_fin);
                     break;
                 case 'eliminar':
-                    if ($id !== null) {
-                        echo $this->negocioHorario->eliminar($id)
-                            ? "<p class='alert alert-success'>Horario eliminado exitosamente.</p>"
-                            : "<p class='alert alert-danger'>Error al eliminar horario.</p>";
-                    }
+                    $this->eliminar($id);
                     break;
             }
         }
     }
 
-    // Muestra la vista completa
+    // Método que activa la creación en el Negocio (Detalle Procedimental)
+    private function crear(?int $id_aula, ?int $id_grupo, ?int $dia, string $inicio, string $fin): void {
+        if ($id_aula && $id_grupo && $dia && $inicio && $fin) {
+            $resultado = $this->negocioHorario->crear($id_aula, $id_grupo, $dia, $inicio, $fin);
+            echo $resultado === 'ok'
+                ? "<p class='alert alert-success'>Horario creado exitosamente.</p>"
+                : "<p class='alert alert-danger'>$resultado</p>";
+        } else {
+            echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
+        }
+    }
+
+    // Método que activa la edición en el Negocio
+    private function editar(?int $id, ?int $id_aula, ?int $id_grupo, ?int $dia, string $inicio, string $fin): void {
+        if ($id !== null && $id_aula && $id_grupo && $dia && $inicio && $fin) {
+            $resultado = $this->negocioHorario->editar($id, $id_aula, $id_grupo, $dia, $inicio, $fin);
+            echo $resultado === 'ok'
+                ? "<p class='alert alert-success'>Horario editado exitosamente.</p>"
+                : "<p class='alert alert-danger'>$resultado</p>";
+        }
+    }
+
+    // Método que activa la eliminación en el Negocio
+    private function eliminar(?int $id): void {
+        if ($id !== null) {
+            echo $this->negocioHorario->eliminar($id)
+                ? "<p class='alert alert-success'>Horario eliminado exitosamente.</p>"
+                : "<p class='alert alert-danger'>Error al eliminar horario.</p>";
+        }
+    }
+
+    // Muestra la vista completa: formulario + tabla + QR al costado
     public function mostrarVista(): void {
         $this->renderInicio("Gestión de Horarios");
         $horarios = $this->negocioHorario->listar();
-        // Se necesitan aulas y grupos para los selects
         $aulas = $this->negocioAula->listar();
         $grupos = $this->negocioGrupo->listar();
+
+        // Si se pidió ver el QR de un horario, generamos la imagen
+        $qrImagen = null;
+        $qrHorarioId = null;
+        $qrInfo = '';
+        if (isset($_GET['qr']) && is_numeric($_GET['qr'])) {
+            $qrHorarioId = (int)$_GET['qr'];
+            $qrImagen = $this->negocioHorario->generarQrImagen($qrHorarioId);
+            // Buscamos la info del horario para mostrar junto al QR
+            foreach ($horarios as $h) {
+                if ($h['id_horario'] == $qrHorarioId) {
+                    $qrInfo = $h['sigla'] . ' - ' . $h['grupo_nombre'] . ' / ' . ($this->diasSemana[$h['dia_semana']] ?? '') . ' ' . $h['hora_inicio'] . '-' . $h['hora_fin'];
+                    break;
+                }
+            }
+        }
 ?>
+        <!-- CSS para impresión: solo muestra el QR -->
+        <style>
+            @media print {
+                body * { visibility: hidden; }
+                #qr-print, #qr-print * { visibility: visible; }
+                #qr-print {
+                    position: absolute; left: 0; top: 0;
+                    width: 100%; text-align: center; padding-top: 40px;
+                }
+            }
+        </style>
+
         <h2>Gestionar Horarios</h2>
 
         <!-- Formulario -->
@@ -123,44 +166,68 @@ class PHorario extends VistaBase {
             </div>
         </div>
 
-        <!-- Tabla de horarios -->
-        <div class="card">
-            <div class="card-header"><strong>Listado de Horarios</strong></div>
-            <div class="card-body p-0">
-                <?php if (!empty($horarios)): ?>
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr><th>ID</th><th>Aula</th><th>Materia</th><th>Grupo</th><th>Día</th><th>Inicio</th><th>Fin</th><th>Acciones</th></tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($horarios as $h): ?>
-                                <tr>
-                                    <td><?= $h['id_horario'] ?></td>
-                                    <td><?= htmlspecialchars($h['aula_codigo']) ?></td>
-                                    <td><?= htmlspecialchars($h['sigla'] . ' - ' . $h['nombre_materia']) ?></td>
-                                    <td><?= htmlspecialchars($h['grupo_nombre']) ?></td>
-                                    <td><?= $this->diasSemana[$h['dia_semana']] ?? $h['dia_semana'] ?></td>
-                                    <td><?= $h['hora_inicio'] ?></td>
-                                    <td><?= $h['hora_fin'] ?></td>
-                                    <td>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick='seleccionar(this)'
-                                            data-id="<?= $h['id_horario'] ?>"
-                                            data-aula="<?= $h['id_aula'] ?>"
-                                            data-grupo="<?= $h['id_grupo'] ?>"
-                                            data-dia="<?= $h['dia_semana'] ?>"
-                                            data-inicio="<?= $h['hora_inicio'] ?>"
-                                            data-fin="<?= $h['hora_fin'] ?>">
-                                            Seleccionar
-                                        </button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php else: ?>
-                    <p class="text-muted p-3">No hay horarios registrados.</p>
-                <?php endif; ?>
+        <!-- Tabla y QR lado a lado -->
+        <div class="row">
+            <!-- Listado de horarios (izquierda) -->
+            <div class="<?= $qrImagen ? 'col-md-7' : 'col-12' ?>">
+                <div class="card">
+                    <div class="card-header"><strong>Listado de Horarios</strong></div>
+                    <div class="card-body p-0">
+                        <?php if (!empty($horarios)): ?>
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr><th>ID</th><th>Aula</th><th>Materia</th><th>Grupo</th><th>Día</th><th>Hora</th><th>Acciones</th></tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($horarios as $h): ?>
+                                        <tr class="<?= ($qrHorarioId == $h['id_horario']) ? 'table-active' : '' ?>">
+                                            <td><?= $h['id_horario'] ?></td>
+                                            <td><?= htmlspecialchars($h['aula_codigo']) ?></td>
+                                            <td><?= htmlspecialchars($h['sigla'] . ' - ' . $h['nombre_materia']) ?></td>
+                                            <td><?= htmlspecialchars($h['grupo_nombre']) ?></td>
+                                            <td><?= $this->diasSemana[$h['dia_semana']] ?? $h['dia_semana'] ?></td>
+                                            <td><?= $h['hora_inicio'] ?> - <?= $h['hora_fin'] ?></td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick='seleccionar(this)'
+                                                    data-id="<?= $h['id_horario'] ?>"
+                                                    data-aula="<?= $h['id_aula'] ?>"
+                                                    data-grupo="<?= $h['id_grupo'] ?>"
+                                                    data-dia="<?= $h['dia_semana'] ?>"
+                                                    data-inicio="<?= $h['hora_inicio'] ?>"
+                                                    data-fin="<?= $h['hora_fin'] ?>">
+                                                    Seleccionar
+                                                </button>
+                                                <a href="PHorario.php?qr=<?= $h['id_horario'] ?>" class="btn btn-sm btn-outline-info">Ver QR</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else: ?>
+                            <p class="text-muted p-3">No hay horarios registrados.</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
+
+            <?php // Si se generó un QR, lo mostramos al costado derecho ?>
+            <?php if ($qrImagen): ?>
+                <div class="col-md-5">
+                    <div class="card border-primary shadow-sm" id="qr-print">
+                        <div class="card-header text-white" style="background: linear-gradient(135deg, #1a237e, #283593);">
+                            <strong>📷 QR - Horario #<?= $qrHorarioId ?></strong>
+                        </div>
+                        <div class="card-body text-center bg-white p-4">
+                            <img src="<?= $qrImagen ?>" alt="QR Code" class="img-fluid border p-2 bg-light shadow-sm" style="max-width: 220px; border-radius: 10px;">
+                            <p class="mt-3 fw-bold mb-1"><?= htmlspecialchars($qrInfo) ?></p>
+                            <small class="text-muted">Escanea para marcar asistencia</small>
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-secondary" onclick="window.print()">🖨️ Imprimir QR</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
 
         <script>
