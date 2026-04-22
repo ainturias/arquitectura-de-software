@@ -4,6 +4,16 @@
 -- Arquitectura: 3 Capas
 -- =============================================
 
+-- Limpieza previa (en orden inverso a las dependencias)
+DROP TABLE IF EXISTS asistencia CASCADE;
+DROP TABLE IF EXISTS detalle_inscripcion CASCADE;
+DROP TABLE IF EXISTS inscripcion CASCADE;
+DROP TABLE IF EXISTS horario CASCADE;
+DROP TABLE IF EXISTS grupo CASCADE;
+DROP TABLE IF EXISTS estudiante CASCADE;
+DROP TABLE IF EXISTS aula CASCADE;
+DROP TABLE IF EXISTS materia CASCADE;
+
 -- MATERIA (Caso de Uso Básico)
 CREATE TABLE materia (
   id_materia    SERIAL       PRIMARY KEY,
@@ -48,16 +58,23 @@ CREATE TABLE horario (
   FOREIGN KEY (id_grupo) REFERENCES grupo(id_grupo)  ON DELETE CASCADE
 );
 
--- INSCRIPCION (Composición de Grupo - CU Transaccional)
--- Si se elimina el grupo, se eliminan sus inscripciones
+-- INSCRIPCION (Cabecera - CU Transaccional)
+-- Representa un lote de inscripciones a un grupo
 CREATE TABLE inscripcion (
   id_inscripcion    SERIAL PRIMARY KEY,
-  id_estudiante     INT    NOT NULL,
   id_grupo          INT    NOT NULL,
-  fecha_inscripcion DATE   NOT NULL DEFAULT CURRENT_DATE,
-  CONSTRAINT inscripcion_unica UNIQUE (id_estudiante, id_grupo),
-  FOREIGN KEY (id_estudiante) REFERENCES estudiante(id_estudiante) ON DELETE CASCADE,
-  FOREIGN KEY (id_grupo)      REFERENCES grupo(id_grupo)           ON DELETE CASCADE
+  fecha             DATE   NOT NULL DEFAULT CURRENT_DATE,
+  FOREIGN KEY (id_grupo) REFERENCES grupo(id_grupo) ON DELETE CASCADE
+);
+
+-- DETALLE_INSCRIPCION (Detalle - CU Transaccional)
+-- Cada estudiante inscrito en el lote (Composición con inscripcion)
+CREATE TABLE detalle_inscripcion (
+  id_detalle        SERIAL PRIMARY KEY,
+  id_inscripcion    INT    NOT NULL,
+  id_estudiante     INT    NOT NULL,
+  FOREIGN KEY (id_inscripcion) REFERENCES inscripcion(id_inscripcion) ON DELETE CASCADE,
+  FOREIGN KEY (id_estudiante)  REFERENCES estudiante(id_estudiante)   ON DELETE CASCADE
 );
 
 -- ASISTENCIA (CU Transaccional - detalle de asistencia por horario)

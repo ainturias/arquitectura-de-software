@@ -1,52 +1,84 @@
 <?php
-// Registro de Asistencia - Capa de Presentación
 // Esta es la página a la que llega el ESTUDIANTE cuando escanea el QR
-// El QR contiene el id_horario para identificar la clase
 require_once 'VistaBase.php';
 require_once '../negocio/NAsistencia.php';
 
-class PAsistencia extends VistaBase {
+class PAsistencia extends VistaBase
+{
     private NAsistencia $negocioAsistencia;
 
-    public function __construct() {
+    // Atributos de estado del formulario
+    private ?int $id_horario = null;
+    private ?string $registro = null;
+    private string $mensaje = '';
+    private string $tipoAlerta = '';
+
+    public function __construct()
+    {
         $this->negocioAsistencia = new NAsistencia();
     }
 
-    // Diseño limpio para la vista del estudiante (sin navbar del docente)
-    private function renderInicioLimpio(string $titulo): void {
-        echo <<<HTML
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>$titulo</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            <style>
-                body { background-color: #f0f2f5; }
-            </style>
-        </head>
-        <body class="d-flex align-items-center py-4">
-        HTML;
+    // Enrutador: captura los datos del formulario y ejecuta la acción
+    public function procesarFormulario(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->id_horario = isset($_POST['id_horario']) && is_numeric($_POST['id_horario']) ? (int) $_POST['id_horario'] : null;
+            $this->registro = $_POST['registro'] ?? null;
+
+            $this->registrarAsistencia();
+        }
     }
 
-    private function renderFinLimpio(): void {
-        echo <<<HTML
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        </body>
-        </html>
-        HTML;
+    // Registra la asistencia del estudiante (equivalente al "crear")
+    private function registrarAsistencia(): void
+    {
+        if (!$this->id_horario || !$this->registro) {
+            $this->mensaje = 'Faltan datos para procesar la asistencia.';
+            $this->tipoAlerta = 'danger';
+            return;
+        }
+
+        // Delegamos al negocio la validación y el registro
+        $this->mensaje = $this->negocioAsistencia->marcarAsistencia($this->registro, $this->id_horario);
+        $this->tipoAlerta = str_contains($this->mensaje, 'éxito') ? 'success' : 'warning';
+    }
+
+    // Obtiene la información del horario para mostrar en el formulario
+    private function obtenerDatosClase(): ?array
+    {
+        $id_horario = isset($_GET['id_horario']) && is_numeric($_GET['id_horario']) ? (int) $_GET['id_horario'] : null;
+
+        if (!$id_horario) {
+            return null;
+        }
+
+        $data = $this->negocioAsistencia->obtenerDatosParaFormulario($id_horario);
+        if ($data['error']) {
+            return null;
+        }
+
+        $this->id_horario = $id_horario;
+        return $data['datos_clase'];
     }
 
     // Punto de entrada de la vista
-    public function mostrarVista(): void {
+    public function mostrarVista(): void
+    {
         $this->renderInicioLimpio("Registrar Asistencia");
         echo '<main class="container">';
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->procesarFormulario();
+        // Si hubo un POST, mostramos el resultado
+        if ($this->mensaje) {
+            $this->mostrarMensaje($this->tipoAlerta, 'Resultado', $this->mensaje);
         } else {
-            $this->mostrarFormulario();
+            // Si es GET, mostramos el formulario
+            $clase = $this->obtenerDatosClase();
+
+            if (!$clase) {
+                $this->mostrarMensaje('danger', 'URL Inválida', 'El código QR no proporcionó un horario válido.');
+            } else {
+                $this->mostrarFormulario($clase);
+            }
         }
 
         echo '</main>';
@@ -54,29 +86,14 @@ class PAsistencia extends VistaBase {
     }
 
     // Muestra el formulario donde el estudiante ingresa su registro
-    private function mostrarFormulario(): void {
-        $id_horario = isset($_GET['id_horario']) && is_numeric($_GET['id_horario']) ? (int)$_GET['id_horario'] : null;
-
-        if (!$id_horario) {
-            $this->mostrarMensaje('danger', 'URL Inválida', 'El código QR no proporcionó un horario válido.');
-            return;
-        }
-
-        // Obtenemos la información del horario para mostrar al estudiante
-        $data = $this->negocioAsistencia->obtenerDatosParaFormulario($id_horario);
-
-        if ($data['error']) {
-            $this->mostrarMensaje('warning', 'Atención', $data['error']);
-            return;
-        }
-
-        $clase = $data['datos_clase'];
+    private function mostrarFormulario(array $clase): void
+    {
         ?>
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-6">
                 <div class="card shadow-sm" style="border-radius: 12px;">
                     <div class="card-header text-white text-center" style="background: linear-gradient(135deg, #1a237e, #283593); border-radius: 12px 12px 0 0;">
-                        <h3 class="my-2">📋 Registrar Asistencia</h3>
+                        <h3 class="my-2">Registrar Asistencia</h3>
                     </div>
                     <div class="card-body p-4">
                         <div class="mb-3">
@@ -96,13 +113,13 @@ class PAsistencia extends VistaBase {
                             <p id="reloj-actual" class="fs-5 border-bottom pb-2"><?= htmlspecialchars($clase['hora_actual']) ?></p>
                         </div>
                         <form method="POST">
-                            <input type="hidden" name="id_horario" value="<?= htmlspecialchars($id_horario) ?>">
+                            <input type="hidden" name="id_horario" value="<?= htmlspecialchars($this->id_horario) ?>">
                             <div class="mb-3">
                                 <label for="registro" class="form-label fs-5"><strong>Introduce tu Registro</strong></label>
-                                <input type="text" name="registro" id="registro" class="form-control form-control-lg" placeholder="Ej: 219012345" required autofocus>
+                                <input type="text" name="registro" id="registro" class="form-control form-control-lg" placeholder="Ej: 219012345" autofocus>
                             </div>
                             <div class="d-grid mt-4">
-                                <button type="submit" class="btn btn-success btn-lg">Registrar Asistencia</button>
+                                <button type="submit" class="btn btn-success btn-lg">REGISTRAR ASISTENCIA</button>
                             </div>
                         </form>
                     </div>
@@ -123,24 +140,9 @@ class PAsistencia extends VistaBase {
         <?php
     }
 
-    // Procesa el registro de asistencia del estudiante
-    private function procesarFormulario(): void {
-        $id_horario = isset($_POST['id_horario']) && is_numeric($_POST['id_horario']) ? (int)$_POST['id_horario'] : null;
-        $registro = $_POST['registro'] ?? null;
-
-        if (!$id_horario || !$registro) {
-            $this->mostrarMensaje('danger', 'Error', 'Faltan datos para procesar la asistencia.');
-            return;
-        }
-
-        // Llamamos al negocio para registrar la asistencia
-        $mensaje = $this->negocioAsistencia->marcarAsistencia($registro, $id_horario);
-        $tipoAlerta = str_contains($mensaje, 'éxito') ? 'success' : 'warning';
-        $this->mostrarMensaje($tipoAlerta, 'Resultado', $mensaje);
-    }
-
     // Muestra un mensaje con formato de alerta
-    private function mostrarMensaje(string $tipo, string $titulo, string $cuerpo): void {
+    private function mostrarMensaje(string $tipo, string $titulo, string $cuerpo): void
+    {
         echo <<<HTML
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-6">
@@ -157,6 +159,7 @@ class PAsistencia extends VistaBase {
     }
 }
 
-// Ejecuta la vista
+// Inicialización y ejecución
 $vista = new PAsistencia();
+$vista->procesarFormulario();
 $vista->mostrarVista();

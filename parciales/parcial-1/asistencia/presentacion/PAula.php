@@ -9,6 +9,7 @@ class PAula extends VistaBase
     // Atributos de clase (Estado de la Vista)
     private ?int $id = null;
     private string $codigo = '';
+    private string $mensaje = '';
 
     public function __construct()
     {
@@ -56,22 +57,32 @@ class PAula extends VistaBase
     private function eliminar(): void
     {
         if ($this->id !== null) {
-            $this->negocioAula->eliminar($this->id);
+            try {
+                $this->negocioAula->eliminar($this->id);
+            } catch (Exception $e) {
+                $this->mensaje = "<div class='alert alert-danger'>No se puede eliminar: el aula tiene horarios asociados.</div>";
+            }
+        } else {
+            $this->mensaje = "<div class='alert alert-warning'>Seleccione un aula de la tabla primero.</div>";
         }
     }
 
-    private function getAulas(): array
+    private function listar(): array
     {
-        return $this->negocioAula->getAulas();
+        return $this->negocioAula->listar();
     }
 
     public function mostrarVista(): void
     {
-        $aulas = $this->getAulas();
+        $aulas = $this->listar();
         $this->renderInicio("Gestión de Aulas");
         ?>
         <div class="container-fluid py-3">
             <h2 class="mb-4">Gestionar Aulas</h2>
+
+            <?php if ($this->mensaje): ?>
+                <?= $this->mensaje ?>
+            <?php endif; ?>
 
             <!-- Formulario de Entrada -->
             <div class="card mb-4 shadow-sm">
@@ -85,14 +96,13 @@ class PAula extends VistaBase
                             <div class="col-md-9">
                                 <label class="text-muted small fw-bold">CÓDIGO</label>
                                 <input name="codigo" id="inputCodigo" class="form-control" placeholder="Ej: Aula-15"
-                                    maxlength="40" required>
+                                    maxlength="40">
                             </div>
                         </div>
                         <div class="mt-3">
                             <button name="accion" value="crear" class="btn btn-success px-4">CREAR</button>
                             <button name="accion" value="editar" class="btn btn-warning px-4 text-white">EDITAR</button>
-                            <button name="accion" value="eliminar" class="btn btn-danger px-4"
-                                onclick="return confirm('¿Seguro?')">ELIMINAR</button>
+                            <button name="accion" value="eliminar" class="btn btn-danger px-4">ELIMINAR</button>
                         </div>
                     </form>
                 </div>

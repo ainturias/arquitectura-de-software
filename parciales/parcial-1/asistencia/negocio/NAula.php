@@ -13,7 +13,8 @@ class NAula
     // Crea una nueva aula verificando que no exista el código
     public function crear(string $codigo): bool
     {
-        if ($this->datosAula->existeCodigo($codigo)) {
+        $yaExiste = $this->datosAula->existeCodigo($codigo);
+        if ($yaExiste) {
             return false;
         }
         $this->datosAula->setCodigo($codigo);
@@ -36,8 +37,10 @@ class NAula
     }
 
     // Obtiene todas las aulas
-    public function getAulas(): array
+    public function listar(): array
     {
         return $this->datosAula->listar();
     }
+
+
 }

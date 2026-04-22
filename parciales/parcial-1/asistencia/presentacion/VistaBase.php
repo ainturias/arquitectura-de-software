@@ -58,4 +58,33 @@ class VistaBase {
         </html>
         <?php
     }
+
+    //-------------------------------------- VISTA ESTUDIANTE ------------------------------------------------------
+
+    // Renderiza la parte superior del HTML SIN navbar (para Estudiantes)
+    public function renderInicioLimpio($titulo = "Asistencia") {
+        ?>
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?= $titulo ?></title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { background-color: #f0f2f5; }
+            </style>
+        </head>
+        <body class="d-flex align-items-center py-4">
+        <?php
+    }
+
+    // Renderiza la parte inferior del HTML SIN el div container
+    public function renderFinLimpio() {
+        ?>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        </body>
+        </html>
+        <?php
+    }
 }

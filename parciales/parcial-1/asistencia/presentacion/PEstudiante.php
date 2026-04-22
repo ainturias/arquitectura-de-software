@@ -1,138 +1,170 @@
 <?php
-// Gestión de Estudiantes - Capa de Presentación
 require_once 'VistaBase.php';
 require_once '../negocio/NEstudiante.php';
 
-class PEstudiante extends VistaBase {
+class PEstudiante extends VistaBase
+{
     private NEstudiante $negocioEstudiante;
 
-    public function __construct() {
+    private ?int $id = null;
+    private string $nombre = '';
+    private string $apellido = '';
+    private string $registro = '';
+    private string $mensaje = '';
+
+    public function __construct()
+    {
         $this->negocioEstudiante = new NEstudiante();
     }
 
-    // Procesa las acciones del formulario (Enrutador de funciones)
-    public function procesarFormulario(): void {
+    // Enrutador de acciones
+    public function procesarFormulario(): void
+    {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accion = $_POST['accion'] ?? '';
-            $id = isset($_POST['id']) && is_numeric($_POST['id']) ? (int)$_POST['id'] : null;
-            $nombre = trim($_POST['nombre'] ?? '');
-            $apellido = trim($_POST['apellido'] ?? '');
-            $registro = trim($_POST['registro'] ?? '');
+
+            $this->id = isset($_POST['id']) && is_numeric($_POST['id']) ? (int) $_POST['id'] : null;
+            $this->nombre = trim($_POST['nombre'] ?? '');
+            $this->apellido = trim($_POST['apellido'] ?? '');
+            $this->registro = trim($_POST['registro'] ?? '');
 
             switch ($accion) {
                 case 'crear':
-                    $this->crear($nombre, $apellido, $registro);
+                    $this->crear();
                     break;
                 case 'editar':
-                    $this->editar($id, $nombre, $apellido, $registro);
+                    $this->editar();
                     break;
                 case 'eliminar':
-                    $this->eliminar($id);
+                    $this->eliminar();
                     break;
             }
         }
     }
 
-    // Método que activa la creación (Detalle Procedimental en el diagrama)
-    private function crear(string $nombre, string $apellido, string $registro): void {
-        if ($nombre && $apellido && $registro) {
-            echo $this->negocioEstudiante->crear($nombre, $apellido, $registro)
-                ? "<p class='alert alert-success'>Estudiante creado exitosamente.</p>"
-                : "<p class='alert alert-danger'>Error: el registro ya existe.</p>";
-        } else {
-            echo "<p class='alert alert-warning'>Todos los campos son obligatorios.</p>";
+    private function crear(): void
+    {
+        if ($this->nombre && $this->apellido && $this->registro) {
+            $this->negocioEstudiante->crear($this->nombre, $this->apellido, $this->registro);
         }
     }
 
-    // Método que activa la edición
-    private function editar(?int $id, string $nombre, string $apellido, string $registro): void {
-        if ($id !== null && $nombre && $apellido && $registro) {
-            echo $this->negocioEstudiante->editar($id, $nombre, $apellido, $registro)
-                ? "<p class='alert alert-success'>Estudiante editado exitosamente.</p>"
-                : "<p class='alert alert-danger'>Error al editar estudiante.</p>";
+    private function editar(): void
+    {
+        if ($this->id !== null && $this->nombre && $this->apellido && $this->registro) {
+            $this->negocioEstudiante->editar($this->id, $this->nombre, $this->apellido, $this->registro);
         }
     }
 
-    // Método que activa la eliminación
-    private function eliminar(?int $id): void {
-        if ($id !== null) {
-            echo $this->negocioEstudiante->eliminar($id)
-                ? "<p class='alert alert-success'>Estudiante eliminado exitosamente.</p>"
-                : "<p class='alert alert-danger'>Error al eliminar estudiante.</p>";
+    private function eliminar(): void
+    {
+        if ($this->id !== null) {
+            try {
+                $this->negocioEstudiante->eliminar($this->id);
+            } catch (Exception $e) {
+                $this->mensaje = "<div class='alert alert-danger'>No se puede eliminar: el estudiante tiene inscripciones o asistencias asociadas.</div>";
+            }
         }
     }
 
-    // Muestra la vista completa
-    public function mostrarVista(): void {
+    private function listar(): array
+    {
+        return $this->negocioEstudiante->listar();
+    }
+
+    public function mostrarVista(): void
+    {
+        $estudiantes = $this->listar();
         $this->renderInicio("Gestión de Estudiantes");
-        $estudiantes = $this->negocioEstudiante->listar();
-?>
-        <h2>Gestionar Estudiantes</h2>
+        ?>
+        <div class="container-fluid py-3">
+            <h2 class="mb-4">Gestionar Estudiantes</h2>
 
-        <!-- Formulario -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <form method="POST">
-                    <div class="row g-3">
-                        <div class="col-md-2">
-                            <input name="id" id="inputId" class="form-control" placeholder="ID" readonly>
+            <?php if ($this->mensaje): ?>
+                <?= $this->mensaje ?>
+            <?php endif; ?>
+
+            <!-- Formulario de Entrada -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-1">
+                                <label class="text-muted small fw-bold">ID</label>
+                                <input name="id" id="inputId" class="form-control bg-light" placeholder="ID" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="text-muted small fw-bold">NOMBRE</label>
+                                <input name="nombre" id="inputNombre" class="form-control" placeholder="Ej: Juan"
+                                    maxlength="80">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small fw-bold">APELLIDO</label>
+                                <input name="apellido" id="inputApellido" class="form-control" placeholder="Ej: Pérez"
+                                    maxlength="80">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small fw-bold">REGISTRO</label>
+                                <input name="registro" id="inputRegistro" class="form-control" placeholder="Ej: 219012345"
+                                    maxlength="40">
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <input name="nombre" id="inputNombre" class="form-control" placeholder="Nombre" maxlength="80" required>
+                        <div class="mt-3">
+                            <button name="accion" value="crear" class="btn btn-success px-4">CREAR</button>
+                            <button name="accion" value="editar" class="btn btn-warning px-4 text-white">EDITAR</button>
+                            <button name="accion" value="eliminar" class="btn btn-danger px-4">ELIMINAR</button>
                         </div>
-                        <div class="col-md-3">
-                            <input name="apellido" id="inputApellido" class="form-control" placeholder="Apellido" maxlength="80" required>
-                        </div>
-                        <div class="col-md-4">
-                            <input name="registro" id="inputRegistro" class="form-control" placeholder="Registro (ej: 219012345)" maxlength="40" required>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <button name="accion" value="crear" class="btn btn-success">Crear</button>
-                        <button name="accion" value="editar" class="btn btn-warning">Editar</button>
-                        <button name="accion" value="eliminar" class="btn btn-danger">Eliminar</button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
-        </div>
 
-        <!-- Tabla de estudiantes -->
-        <div class="card">
-            <div class="card-header"><strong>Listado de Estudiantes</strong></div>
-            <div class="card-body p-0">
-                <?php if (!empty($estudiantes)): ?>
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr><th>ID</th><th>Nombre</th><th>Apellido</th><th>Registro</th><th>Acciones</th></tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($estudiantes as $e): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($e['id_estudiante']) ?></td>
-                                    <td><?= htmlspecialchars($e['nombre']) ?></td>
-                                    <td><?= htmlspecialchars($e['apellido']) ?></td>
-                                    <td><?= htmlspecialchars($e['registro']) ?></td>
-                                    <td>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick='seleccionar(this)'
-                                            data-id="<?= $e['id_estudiante'] ?>"
-                                            data-nombre="<?= htmlspecialchars($e['nombre']) ?>"
-                                            data-apellido="<?= htmlspecialchars($e['apellido']) ?>"
-                                            data-registro="<?= htmlspecialchars($e['registro']) ?>">
-                                            Seleccionar
-                                        </button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php else: ?>
-                    <p class="text-muted p-3">No hay estudiantes registrados.</p>
-                <?php endif; ?>
+            <!-- Tabla de Resultados -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                    <strong>LISTADO DE ESTUDIANTES</strong>
+                </div>
+                <div class="card-body p-0">
+                    <?php if (!empty($estudiantes)): ?>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>NOMBRE</th>
+                                        <th>APELLIDO</th>
+                                        <th>REGISTRO</th>
+                                        <th class="text-end">ACCIÓN</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($estudiantes as $e): ?>
+                                        <tr>
+                                            <td><?= $e['id_estudiante'] ?></td>
+                                            <td><?= htmlspecialchars($e['nombre']) ?></td>
+                                            <td><strong><?= htmlspecialchars($e['apellido']) ?></strong></td>
+                                            <td><?= htmlspecialchars($e['registro']) ?></td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick='seleccionar(this)'
+                                                    data-id="<?= $e['id_estudiante'] ?>"
+                                                    data-nombre="<?= htmlspecialchars($e['nombre']) ?>"
+                                                    data-apellido="<?= htmlspecialchars($e['apellido']) ?>"
+                                                    data-registro="<?= htmlspecialchars($e['registro']) ?>">
+                                                    SELECCIONAR
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-center py-5 text-muted">No existen registros.</p>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
         <script>
-            // Llena el formulario al seleccionar un estudiante
             function seleccionar(btn) {
                 document.getElementById('inputId').value = btn.dataset.id;
                 document.getElementById('inputNombre').value = btn.dataset.nombre;
@@ -140,12 +172,12 @@ class PEstudiante extends VistaBase {
                 document.getElementById('inputRegistro').value = btn.dataset.registro;
             }
         </script>
-<?php
+        <?php
         $this->renderFin();
     }
 }
 
-// Ejecuta la vista
+// Inicialización y ejecución
 $vista = new PEstudiante();
 $vista->procesarFormulario();
 $vista->mostrarVista();

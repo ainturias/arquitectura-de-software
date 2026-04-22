@@ -1,23 +1,34 @@
 <?php
-// Capa de Datos - Asistencia (CU Transaccional)
+// Capa de Datos - Asistencia (CU Complejo)
 // Maneja el registro de asistencia del estudiante vía QR
 require_once __DIR__ . '/../config/Conexion.php';
 
-class DAsistencia {
+class DAsistencia
+{
     private PDO $con;
+
     private ?int $id_estudiante = null;
     private ?int $id_horario = null;
 
-    public function __construct() {
+    public function __construct()
+    {
         $conexion = new Conexion();
         $this->con = $conexion->getConnection();
     }
 
-    public function setIdEstudiante(int $id): void { $this->id_estudiante = $id; }
-    public function setIdHorario(int $id): void { $this->id_horario = $id; }
+    public function setIdEstudiante(int $id): void
+    {
+        $this->id_estudiante = $id;
+    }
+
+    public function setIdHorario(int $id): void
+    {
+        $this->id_horario = $id;
+    }
 
     // Busca los datos del horario para mostrar en el formulario de asistencia
-    public function buscarHorario(int $id_horario): ?array {
+    public function buscarHorario(int $id_horario): ?array
+    {
         $sql = "SELECT h.id_horario, h.id_grupo, a.codigo AS codigo_aula,
                        m.nombre_materia, g.nombre AS grupo_nombre
                 FROM horario h
@@ -31,24 +42,28 @@ class DAsistencia {
     }
 
     // Verifica que el estudiante esté inscrito en el grupo del horario
-    public function buscarEstudiantePorRegistroYGrupo(string $registro, int $id_grupo): ?int {
+    public function buscarEstudiantePorRegistroYGrupo(string $registro, int $id_grupo): ?int
+    {
         $sql = "SELECT e.id_estudiante
                 FROM estudiante e
-                JOIN inscripcion i ON e.id_estudiante = i.id_estudiante
+                JOIN detalle_inscripcion di ON e.id_estudiante = di.id_estudiante
+                JOIN inscripcion i ON di.id_inscripcion = i.id_inscripcion
                 WHERE e.registro = ? AND i.id_grupo = ?";
         $stmt = $this->con->prepare($sql);
         $stmt->execute([$registro, $id_grupo]);
         $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $resultado ? (int)$resultado['id_estudiante'] : null;
+        return $resultado ? (int) $resultado['id_estudiante'] : null;
     }
 
     // Inserta el registro de asistencia en la base de datos
-    public function registrarAsistencia(): bool {
+    public function registrarAsistencia(): bool
+    {
         $sql = "INSERT INTO asistencia (id_estudiante, id_horario) VALUES (?, ?)";
         $stmt = $this->con->prepare($sql);
         try {
             return $stmt->execute([$this->id_estudiante, $this->id_horario]);
         } catch (PDOException $e) {
+            // Código 23505 = violación de restricción UNIQUE (ya marcó asistencia hoy)
             if ($e->getCode() === '23505') {
                 return false;
             }
@@ -56,8 +71,9 @@ class DAsistencia {
         }
     }
 
-    // Lista las asistencias registradas para un grupo, con filtro de fecha
-    public function listarPorGrupo(int $id_grupo, ?string $fecha): array {
+    // Lista las asistencias registradas para un grupo, con filtro opcional de fecha
+    public function listarPorGrupo(int $id_grupo, ?string $fecha): array
+    {
         $params = [$id_grupo];
         $filtroFecha = "";
         if (!empty($fecha)) {

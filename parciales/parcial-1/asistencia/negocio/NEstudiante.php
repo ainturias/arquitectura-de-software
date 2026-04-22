@@ -10,7 +10,8 @@ class NEstudiante {
     }
 
     public function crear(string $nombre, string $apellido, string $registro): bool {
-        if ($this->datosEstudiante->existeRegistro($registro)) {
+        $yaExiste = $this->datosEstudiante->existeRegistro($registro);
+        if ($yaExiste) {
             return false;
         }
         $this->datosEstudiante->setNombre($nombre);
@@ -34,5 +35,10 @@ class NEstudiante {
 
     public function listar(): array {
         return $this->datosEstudiante->listar();
+    }
+
+    // Lista estudiantes no inscritos en un grupo (para el combo de PInscripcion)
+    public function listarNoInscritosEnGrupo(int $id_grupo): array {
+        return $this->datosEstudiante->listarNoInscritosEnGrupo($id_grupo);
     }
 }
